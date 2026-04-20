@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRATPOL — Electoral Intelligence Matrix</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0c10;
+  --bg2: #11141b;
+  --bg3: #181d27;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --muted: #6b7280;
+  --accent: #e8c84a;
+  --accent2: #3b82f6;
+  --danger: #ef4444;
+  --c1: #e8c84a;
+  --c2: #3b82f6;
+  --c3: #10b981;
+  --c4: #f97316;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* TOP NAV */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,12,16,0.95);
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(12px);
+}
+.logo {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+.logo span { color: var(--muted); font-size: 12px; font-family: var(--font-mono); display: block; letter-spacing: 2px; margin-top: -4px; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.tag { font-family: var(--font-mono); font-size: 11px; color: var(--muted); border: 1px solid var(--border2); padding: 4px 10px; border-radius: 4px; }
+.live-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; animation: pulse 2s infinite; display: inline-block; margin-right: 6px; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* LAYOUT */
+.shell { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 57px); }
+
+/* SIDEBAR */
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  background: var(--bg);
+}
+.sidebar-section { padding: 0 20px 20px; margin-bottom: 4px; }
+.sidebar-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+.constituency-card {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.const-name { font-family: var(--font-display); font-size: 22px; letter-spacing: 1px; color: var(--text); }
+.const-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.const-state { font-size: 11px; color: var(--accent); font-family: var(--font-mono); margin-top: 6px; }
+.stat-row { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.stat-item { text-align: center; }
+.stat-val { font-family: var(--font-display); font-size: 18px; color: var(--text); }
+.stat-key { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.weight-controls { }
+.weight-item { margin-bottom: 14px; }
+.weight-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.weight-name { font-size: 12px; color: var(--text); }
+.weight-val { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.weight-slider {
+  -webkit-appearance: none; width: 100%; height: 3px;
+  background: var(--border2); border-radius: 2px; outline: none; cursor: pointer;
+}
+.weight-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px;
+  background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+.weight-slider::-moz-range-thumb { width: 13px; height: 13px; background: var(--accent); border-radius: 50%; border: none; cursor: pointer; }
+
+.osint-feeds { }
+.feed-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-platform { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 48px; margin-top: 1px; }
+.feed-text { color: var(--text); line-height: 1.5; flex: 1; }
+.feed-sentiment { font-size: 10px; font-family: var(--font-mono); padding: 2px 6px; border-radius: 3px; margin-top: 3px; display: inline-block; }
+.sent-pos { background: rgba(16,185,129,0.15); color: #10b981; }
+.sent-neg { background: rgba(239,68,68,0.15); color: #ef4444; }
+.sent-neu { background: rgba(107,114,128,0.15); color: #9ca3af; }
+
+/* MAIN CONTENT */
+.main { padding: 28px 32px; overflow: auto; }
+
+/* HEADER */
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+.page-title { font-family: var(--font-display); font-size: 42px; letter-spacing: 2px; line-height: 1; }
+.page-title span { color: var(--muted); font-size: 14px; font-family: var(--font-body); font-weight: 300; display: block; margin-top: 6px; letter-spacing: 0; }
+.btn-group { display: flex; gap: 8px; }
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); cursor: pointer; border: 1px solid var(--border2); background: var(--bg3); color: var(--muted); transition: all 0.2s; letter-spacing: 1px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 500; }
+
+/* CANDIDATE CARDS ROW */
+.candidate-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+.cand-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.cand-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.cand-card:nth-child(1)::before { background: var(--c1); }
+.cand-card:nth-child(2)::before { background: var(--c2); }
+.cand-card:nth-child(3)::before { background: var(--c3); }
+.cand-card:hover { border-color: var(--border2); }
+.cand-abbr {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 20px;
+  margin-bottom: 12px;
+}
+.cand-card:nth-child(1) .cand-abbr { background: rgba(232,200,74,0.15); color: var(--c1); }
+.cand-card:nth-child(2) .cand-abbr { background: rgba(59,130,246,0.15); color: var(--c2); }
+.cand-card:nth-child(3) .cand-abbr { background: rgba(16,185,129,0.15); color: var(--c3); }
+.cand-name { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.cand-party { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.cand-type { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; }
+.cand-card:nth-child(1) .cand-type { color: var(--c1); }
+.cand-card:nth-child(2) .cand-type { color: var(--c2); }
+.cand-card:nth-child(3) .cand-type { color: var(--c3); }
+.pow-display {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.pow-number { font-family: var(--font-display); font-size: 38px; line-height: 1; }
+.cand-card:nth-child(1) .pow-number { color: var(--c1); }
+.cand-card:nth-child(2) .pow-number { color: var(--c2); }
+.cand-card:nth-child(3) .pow-number { color: var(--c3); }
+.pow-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.pow-bar-wrap { margin-top: 8px; background: var(--border); height: 4px; border-radius: 2px; }
+.pow-bar { height: 4px; border-radius: 2px; transition: width 0.6s ease; }
+.cand-card:nth-child(1) .pow-bar { background: var(--c1); }
+.cand-card:nth-child(2) .pow-bar { background: var(--c2); }
+.cand-card:nth-child(3) .pow-bar { background: var(--c3); }
+.lead-badge { position: absolute; top: 16px; right: 16px; font-family: var(--font-mono); font-size: 9px; background: rgba(232,200,74,0.15); color: var(--accent); padding: 3px 8px; border-radius: 3px; border: 1px solid rgba(232,200,74,0.3); }
+
+/* MATRIX TABLE */
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.section-title { font-family: var(--font-display); font-size: 20px; letter-spacing: 1px; color: var(--text); }
+.section-line { flex: 1; height: 1px; background: var(--border); }
+
+.matrix-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+.matrix-table th {
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  letter-spacing: 2px; text-transform: uppercase; padding: 10px 14px;
+  border-bottom: 1px solid var(--border); text-align: left;
+  background: var(--bg);
+}
+.matrix-table th.cand-th { text-align: center; }
+.matrix-table td {
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.matrix-table tr:hover td { background: rgba(255,255,255,0.02); }
+.factor-name { font-size: 13px; color: var(--text); font-weight: 500; }
+.factor-weight { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+.score-cell { text-align: center; }
+.score-pip-row { display: flex; justify-content: center; gap: 3px; margin-top: 4px; }
+.pip { width: 8px; height: 8px; border-radius: 2px; }
+.score-num { font-family: var(--font-mono); font-size: 13px; }
+.c1-text { color: var(--c1); }
+.c2-text { color: var(--c2); }
+.c3-text { color: var(--c3); }
+.strength-bar-wrap { width: 60px; height: 4px; background: var(--border); border-radius: 2px; margin: 4px auto 0; }
+.strength-bar { height: 4px; border-radius: 2px; }
+
+/* CHARTS GRID */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+.chart-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.chart-title { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 220px; }
+
+/* SCENARIO PANEL */
+.scenario-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 28px; }
+.scenario-card {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; cursor: pointer; transition: all 0.2s;
+}
+.scenario-card:hover { border-color: var(--border2); }
+.scenario-card.active { border-color: var(--accent); background: rgba(232,200,74,0.05); }
+.scenario-label { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+.scenario-name { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 10px; }
+.scenario-bars { display: flex; flex-direction: column; gap: 5px; }
+.scen-bar-row { display: flex; align-items: center; gap: 8px; }
+.scen-bar-label { font-size: 10px; color: var(--muted); width: 26px; }
+.scen-bar-bg { flex: 1; height: 4px; background: var(--border); border-radius: 2px; }
+.scen-bar-fill { height: 4px; border-radius: 2px; transition: width 0.5s; }
+.scen-pct { font-family: var(--font-mono); font-size: 10px; min-width: 28px; text-align: right; }
+
+/* STRATEGIC GAPS */
+.gaps-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 28px; }
+.gap-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  border-left: 3px solid transparent;
+}
+.gap-card.positive { border-left-color: #10b981; }
+.gap-card.negative { border-left-color: #ef4444; }
+.gap-card.neutral  { border-left-color: #6b7280; }
+.gap-tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; margin-bottom: 6px; }
+.gap-card.positive .gap-tag { color: #10b981; }
+.gap-card.negative .gap-tag { color: #ef4444; }
+.gap-card.neutral  .gap-tag { color: #9ca3af; }
+.gap-title { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 4px; }
+.gap-desc { font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+/* FOOTER */
+.page-footer { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.footer-note { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+/* SCROLL ANIMATIONS */
+@keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: translateY(0); } }
+.anim { animation: fadeUp 0.5s ease both; }
+.anim-1 { animation-delay: 0.05s; }
+.anim-2 { animation-delay: 0.1s; }
+.anim-3 { animation-delay: 0.15s; }
+.anim-4 { animation-delay: 0.2s; }
+.anim-5 { animation-delay: 0.25s; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">STRATPOL <span>ELECTORAL INTELLIGENCE MATRIX v2.1</span></div>
+  <div class="topbar-right">
+    <span class="tag">CONSTITUENCY: VARANASI SOUTH</span>
+    <span class="tag">UP-09 · 2024 CYCLE</span>
+    <span style="font-size:12px;color:#6b7280"><span class="live-dot"></span>OSINT LIVE</span>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Constituency Profile</div>
+      <div class="constituency-card">
+        <div class="const-name">VARANASI SOUTH</div>
+        <div class="const-meta">Uttar Pradesh · Assembly Segment</div>
+        <div class="const-state">UP — 09 — VARANASI DISTRICT</div>
+        <div class="stat-row">
+          <div class="stat-item"><div class="stat-val">4.2L</div><div class="stat-key">Voters</div></div>
+          <div class="stat-item"><div class="stat-val">67%</div><div class="stat-key">Last Turnout</div></div>
+          <div class="stat-item"><div class="stat-val">3</div><div class="stat-key">Candidates</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Factor Weights <span style="float:right;color:#3b82f6;cursor:pointer;font-size:10px" onclick="resetWeights()">RESET</span></div>
+      <div class="weight-controls" id="weightControls">
+        <!-- Injected by JS -->
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">OSINT Feed</div>
+      <div class="osint-feeds">
+        <div class="feed-item">
+          <div class="feed-platform">TWITTER</div>
+          <div><div class="feed-text">"Ravi Shankar's rally in Assi Ghat drew massive crowds — feels like 2019 all over again"</div><span class="feed-sentiment sent-pos">+POS</span></div>
+        </div>
+        <div class="feed-item">
+          <div class="feed-platform">NDTV</div>
+          <div><div class="feed-text">SP's Priya Mishra highlights unemployment; attack ads gaining traction in peri-urban wards</div><span class="feed-sentiment sent-neg">−NEG vs INC</span></div>
+        </div>
+        <div class="feed-item">
+          <div class="feed-platform">LOCAL</div>
+          <div><div class="feed-text">Independent Arjun Gupta viral video on road conditions crosses 2.1L views</div><span class="feed-sentiment sent-pos">+POS</span></div>
+        </div>
+        <div class="feed-item">
+          <div class="feed-platform">INDIA TV</div>
+          <div><div class="feed-text">Anti-incumbency wave assessed at moderate level; 23% voters undecided</div><span class="feed-sentiment sent-neu">NEUTRAL</span></div>
+        </div>
+        <div class="feed-item">
+          <div class="feed-platform">TWITTER</div>
+          <div><div class="feed-text">Priya Mishra trending in Varanasi — #YouthVoice movement picking up steam</div><span class="feed-sentiment sent-pos">+POS</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- HEADER -->
+    <div class="page-header anim">
+      <div>
+        <div class="page-title">CANDIDATE MATRIX<span>Predictive political strategy analysis — 3 candidates, 7 factors</span></div>
+      </div>
+      <div class="btn-group">
+        <button class="btn active" onclick="setScenario(0,this)">BASE</button>
+        <button class="btn" onclick="setScenario(1,this)">HIGH TURNOUT</button>
+        <button class="btn" onclick="setScenario(2,this)">SWING</button>
+      </div>
+    </div>
+
+    <!-- CANDIDATE CARDS -->
+    <div class="candidate-strip anim anim-1" id="candStrip">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- MATRIX -->
+    <div class="section-header anim anim-2">
+      <div class="section-title">WEIGHTED FACTOR MATRIX</div>
+      <div class="section-line"></div>
+    </div>
+    <table class="matrix-table anim anim-2" id="matrixTable">
+      <thead>
+        <tr>
+          <th style="width:200px">Factor</th>
+          <th style="width:60px">Weight</th>
+          <th class="cand-th">Ravi Shankar<br><span style="color:var(--c1);font-size:9px">BJP · INCUMBENT</span></th>
+          <th class="cand-th">Priya Mishra<br><span style="color:var(--c2);font-size:9px">SP · CHALLENGER</span></th>
+          <th class="cand-th">Arjun Gupta<br><span style="color:var(--c3);font-size:9px">IND · INDEPENDENT</span></th>
+        </tr>
+      </thead>
+      <tbody id="matrixBody"></tbody>
+    </table>
+
+    <!-- CHARTS -->
+    <div class="section-header anim anim-3">
+      <div class="section-title">VISUAL INTELLIGENCE</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="charts-grid anim anim-3">
+      <div class="chart-card">
+        <div class="chart-title">RADAR — FACTOR STRENGTH COMPARISON</div>
+        <div class="chart-wrap"><canvas id="radarChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">POW% — TURNOUT SENSITIVITY</div>
+        <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- SCENARIOS -->
+    <div class="section-header anim anim-4">
+      <div class="section-title">TURNOUT SCENARIOS</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="scenario-grid anim anim-4" id="scenarioGrid">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- STRATEGIC GAPS -->
+    <div class="section-header anim anim-5">
+      <div class="section-title">STRATEGIC GAP ANALYSIS</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="gaps-grid anim anim-5" id="gapGrid">
+      <!-- Injected by JS -->
+    </div>
+
+    <div class="page-footer">
+      <div class="footer-note">STRATPOL INTELLIGENCE MATRIX · DATA: OSINT + HISTORICAL ELECTORAL RECORDS · CYCLE: 2024</div>
+      <div class="footer-note">LAST UPDATED: <span id="lastUpdated"></span></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const CANDIDATES = [
+  { id:'c1', name:'Ravi Shankar', abbr:'RS', party:'Bharatiya Janata Party', type:'INCUMBENT', color:'var(--c1)', hex:'#e8c84a' },
+  { id:'c2', name:'Priya Mishra', abbr:'PM', party:'Samajwadi Party', type:'CHALLENGER', color:'var(--c2)', hex:'#3b82f6' },
+  { id:'c3', name:'Arjun Gupta', abbr:'AG', party:'Independent', type:'INDEPENDENT', color:'var(--c3)', hex:'#10b981' }
+];
+
+const FACTORS = [
+  { key:'incumbency',   label:'Incumbency Effect',   weight: 15, scores:[4,7,5], desc:'Anti-incumbency sentiment from 5-yr governance' },
+  { key:'party',        label:'Party Strength',       weight: 20, scores:[9,7,2], desc:'National+state machinery, brand & cadre depth' },
+  { key:'pastwork',     label:'Past Work Record',     weight: 18, scores:[6,7,4], desc:'OSINT-verified development & welfare projects' },
+  { key:'personal',     label:'Personal Base',        weight: 17, scores:[7,8,6], desc:'Direct voter loyalty, independent of party' },
+  { key:'identity',     label:'Caste / Religious Base',weight:15, scores:[6,8,3], desc:'Bloc voting patterns from census + exit data' },
+  { key:'sentiment',    label:'Digital Sentiment',    weight: 10, scores:[5,9,7], desc:'Social media, news coverage, public mood' },
+  { key:'organization', label:'Ground Organisation',  weight:  5, scores:[8,6,5], desc:'Booth management, canvassing, logistics' },
+];
+
+const SCENARIOS = [
+  {
+    label:'SCENARIO A', name:'Base Turnout (65–70%)', active: true,
+    pow: [42, 38, 20]
+  },
+  {
+    label:'SCENARIO B', name:'High Turnout (>78%)', active: false,
+    pow: [36, 46, 18]
+  },
+  {
+    label:'SCENARIO C', name:'Swing-Voter Surge', active: false,
+    pow: [31, 41, 28]
+  }
+];
+
+const GAPS = [
+  { type:'positive', tag:'OPPORTUNITY — PRIYA MISHRA', title:'Youth & urban bloc uncontested', desc:'Caste base solidified + highest digital sentiment (9/10) with no credible counter from incumbent on social media — clear path to swing 23% undecided voters.' },
+  { type:'negative',  tag:'VULNERABILITY — RAVI SHANKAR', title:'Anti-incumbency eroding party advantage', desc:'Despite strong party machinery (9/10), personal sentiment score (5/10) signals incumbency fatigue. 5-yr governance criticism is the top negative OSINT signal this cycle.' },
+  { type:'positive', tag:'OPPORTUNITY — ARJUN GUPTA', title:'Road-issue viral moment = entry point', desc:'2.1L-view video on infrastructure puts Gupta on map. High-turnout + swing scenario projects his PoW rising from 20% to 28% — potential kingmaker role.' },
+  { type:'neutral',  tag:'WATCH — IDENTITY FACTOR', title:'Split religious base = fluid outcome', desc:'Incumbent has split support across majority blocs while challenger has a solidified minority bloc. Turnout in Ward 7 & 14 (dense minority population) is decisive.' },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let weights = FACTORS.map(f => f.weight);
+let activeScenario = 0;
+let radarChart, lineChart;
+
+function getScores() {
+  return CANDIDATES.map((c, ci) => {
+    let total = 0, maxTotal = 0;
+    FACTORS.forEach((f, fi) => {
+      total    += f.scores[ci] * weights[fi];
+      maxTotal += 10            * weights[fi];
+    });
+    return Math.round((total / maxTotal) * 100);
+  });
+}
+
+function getPow(scenIdx) {
+  const base = SCENARIOS[scenIdx].pow;
+  const scores = getScores();
+  // Blend base scenario with computed scores
+  return scores.map((s, i) => {
+    let adj = base[i] + (s - 50) * 0.3;
+    return Math.max(5, Math.min(80, Math.round(adj)));
+  }).map((v, i, arr) => {
+    const total = arr.reduce((a,b) => a+b, 0);
+    return Math.round(v / total * 100);
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderCandidateCards() {
+  const pow = getPow(activeScenario);
+  const maxPow = Math.max(...pow);
+  document.getElementById('candStrip').innerHTML = CANDIDATES.map((c, i) => `
+    <div class="cand-card anim anim-${i+1}">
+      ${pow[i] === maxPow ? '<div class="lead-badge">▲ LEADING</div>' : ''}
+      <div class="cand-abbr">${c.abbr}</div>
+      <div class="cand-name">${c.name}</div>
+      <div class="cand-party">${c.party}</div>
+      <div class="cand-type">${c.type}</div>
+      <div class="pow-display">
+        <div>
+          <div class="pow-label">PROB. OF WIN</div>
+          <div class="pow-number">${pow[i]}<span style="font-family:var(--font-body);font-size:16px">%</span></div>
+          <div class="pow-bar-wrap"><div class="pow-bar" style="width:${pow[i]}%"></div></div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderMatrix() {
+  const body = document.getElementById('matrixBody');
+  body.innerHTML = FACTORS.map((f, fi) => {
+    const cells = CANDIDATES.map((c, ci) => {
+      const score = f.scores[ci];
+      const pips  = Array.from({length:10}, (_, k) => `<div class="pip" style="background:${k < score ? CANDIDATES[ci].hex : 'var(--border)'}"></div>`).join('');
+      const cls   = ['c1-text','c2-text','c3-text'][ci];
+      const w     = score * 10;
+      return `<td class="score-cell">
+        <div class="score-num ${cls}">${score}<span style="font-size:10px;color:var(--muted)">/10</span></div>
+        <div class="score-pip-row">${pips}</div>
+        <div class="strength-bar-wrap"><div class="strength-bar" style="width:${w}%;background:${CANDIDATES[ci].hex}"></div></div>
+      </td>`;
+    }).join('');
+    return `<tr>
+      <td>
+        <div class="factor-name">${f.label}</div>
+        <div class="factor-weight">${f.desc}</div>
+      </td>
+      <td style="text-align:center;font-family:var(--font-mono);font-size:13px;color:var(--accent)">${weights[fi]}%</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+}
+
+function renderWeightControls() {
+  document.getElementById('weightControls').innerHTML = FACTORS.map((f,i) => `
+    <div class="weight-item">
+      <div class="weight-header">
+        <div class="weight-name">${f.label}</div>
+        <div class="weight-val" id="wv${i}">${weights[i]}%</div>
+      </div>
+      <input type="range" class="weight-slider" min="0" max="35" value="${weights[i]}"
+        oninput="updateWeight(${i}, this.value)">
+    </div>
+  `).join('');
+}
+
+function renderScenarios() {
+  const pow = getPow(activeScenario);
+  document.getElementById('scenarioGrid').innerHTML = SCENARIOS.map((s, si) => {
+    const sPow = getPow(si);
+    const bars = CANDIDATES.map((c,ci) => `
+      <div class="scen-bar-row">
+        <div class="scen-bar-label" style="color:${c.hex}">${c.abbr}</div>
+        <div class="scen-bar-bg"><div class="scen-bar-fill" style="width:${sPow[ci]}%;background:${c.hex}"></div></div>
+        <div class="scen-pct" style="color:${c.hex}">${sPow[ci]}%</div>
+      </div>`).join('');
+    return `<div class="scenario-card ${si===activeScenario?'active':''}" onclick="setScenario(${si},null)">
+      <div class="scenario-label">${s.label}</div>
+      <div class="scenario-name">${s.name}</div>
+      <div class="scenario-bars">${bars}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderGaps() {
+  document.getElementById('gapGrid').innerHTML = GAPS.map(g => `
+    <div class="gap-card ${g.type}">
+      <div class="gap-tag">${g.tag}</div>
+      <div class="gap-title">${g.title}</div>
+      <div class="gap-desc">${g.desc}</div>
+    </div>
+  `).join('');
+}
+
+function renderCharts() {
+  const labels  = FACTORS.map(f => f.label.replace(' Base','').replace(' Effect','').replace(' Record',''));
+  const datasets = CANDIDATES.map((c,i) => ({
+    label: c.name,
+    data:  FACTORS.map(f => f.scores[i]),
+    borderColor: c.hex,
+    backgroundColor: c.hex + '22',
+    pointBackgroundColor: c.hex,
+    borderWidth: 2,
+    pointRadius: 3,
+  }));
+
+  if (radarChart) radarChart.destroy();
+  radarChart = new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0, max: 10,
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          angleLines: { color: 'rgba(255,255,255,0.06)' },
+          pointLabels: { color: '#6b7280', font: { family: 'DM Mono', size: 9 } },
+          ticks: { color: '#6b7280', backdropColor: 'transparent', stepSize: 2, font: { size: 9 } }
+        }
+      },
+      plugins: {
+        legend: { labels: { color: '#9ca3af', font: { family: 'DM Mono', size: 10 }, boxWidth: 10, padding: 10 } }
+      }
+    }
+  });
+
+  // Line chart: PoW vs turnout %
+  const turnouts = [50, 55, 60, 65, 70, 75, 80, 85];
+  const lineDatasets = CANDIDATES.map((c,ci) => ({
+    label: c.name,
+    data: turnouts.map(t => {
+      const base = SCENARIOS[0].pow[ci];
+      const delta = (t - 65) * (ci === 1 ? 0.6 : ci === 2 ? 0.4 : -0.5);
+      return Math.max(5, Math.min(75, Math.round(base + delta)));
+    }),
+    borderColor: c.hex,
+    backgroundColor: 'transparent',
+    tension: 0.4,
+    borderWidth: 2,
+    pointRadius: 3,
+    pointBackgroundColor: c.hex,
+  }));
+
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: { labels: turnouts.map(t => t+'%'), datasets: lineDatasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280', font: { family: 'DM Mono', size: 9 } } },
+        y: {
+          min: 0, max: 80,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#6b7280', font: { family: 'DM Mono', size: 9 }, callback: v => v+'%' }
+        }
+      },
+      plugins: {
+        legend: { labels: { color: '#9ca3af', font: { family: 'DM Mono', size: 10 }, boxWidth: 10, padding: 10 } }
+      }
+    }
+  });
+}
+
+// ── INTERACTIONS ───────────────────────────────────────────────────────────
+function updateWeight(i, val) {
+  weights[i] = parseInt(val);
+  document.getElementById('wv' + i).textContent = val + '%';
+  renderMatrix();
+  renderCandidateCards();
+  renderScenarios();
+  renderCharts();
+}
+
+function resetWeights() {
+  weights = FACTORS.map(f => f.weight);
+  renderWeightControls();
+  renderAll();
+}
+
+function setScenario(idx, btn) {
+  activeScenario = idx;
+  // update top buttons
+  document.querySelectorAll('.btn-group .btn').forEach((b,i) => b.classList.toggle('active', i === idx));
+  renderCandidateCards();
+  renderScenarios();
+}
+
+function renderAll() {
+  renderCandidateCards();
+  renderMatrix();
+  renderScenarios();
+  renderGaps();
+  renderCharts();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.getElementById('lastUpdated').textContent = new Date().toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' });
+renderWeightControls();
+renderAll();
+</script>
+</body>
+</html>

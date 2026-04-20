@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URBAN — Predictive Real Estate Growth Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f7f5f0;
+  --bg2: #ffffff;
+  --bg3: #f0ede6;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.15);
+  --text: #1a1a1a;
+  --muted: #8a8478;
+  --accent: #c8581a;
+  --accent2: #2d5a3d;
+  --accent3: #1a3a5c;
+  --hot: #e63946;
+  --warm: #f4a261;
+  --cool: #2d9cdb;
+  --cold: #6c757d;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 12px;
+  --shadow: 0 2px 20px rgba(0,0,0,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* TOP NAV */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 32px;
+  background: var(--text);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { font-family: var(--font-display); font-size: 22px; color: #fff; letter-spacing: 1px; }
+.logo em { color: var(--warm); font-style: normal; }
+.logo-sub { font-family: var(--font-mono); font-size: 10px; color: #666; letter-spacing: 2px; margin-top: 2px; }
+.topbar-chips { display: flex; gap: 10px; align-items: center; }
+.chip { font-family: var(--font-mono); font-size: 10px; padding: 4px 12px; border-radius: 20px; border: 1px solid #333; color: #888; letter-spacing: 1px; }
+.chip.active { border-color: var(--warm); color: var(--warm); }
+.live-indicator { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; color: #22c55e; }
+.live-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* LAYOUT */
+.layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 57px); }
+
+/* SIDEBAR */
+.sidebar { background: var(--text); padding: 24px 0; border-right: 1px solid #222; overflow-y: auto; }
+.sidebar-block { padding: 0 20px 24px; border-bottom: 1px solid #222; margin-bottom: 4px; }
+.sidebar-block:last-child { border-bottom: none; }
+.sb-label { font-family: var(--font-mono); font-size: 10px; color: #555; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
+
+.city-hero { background: #111; border-radius: var(--radius); padding: 16px; margin-bottom: 0; }
+.city-name { font-family: var(--font-display); font-size: 26px; color: #fff; }
+.city-meta { font-size: 11px; color: #666; margin-top: 3px; }
+.city-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.city-stat { background: #1a1a1a; border-radius: 8px; padding: 10px; }
+.city-stat-val { font-family: var(--font-display); font-size: 20px; color: var(--warm); }
+.city-stat-key { font-size: 10px; color: #555; margin-top: 2px; }
+
+.zone-list { display: flex; flex-direction: column; gap: 8px; }
+.zone-item {
+  background: #111; border-radius: 8px; padding: 12px;
+  cursor: pointer; transition: all 0.2s; border: 1px solid transparent;
+}
+.zone-item:hover { border-color: #333; }
+.zone-item.selected { border-color: var(--warm); background: #1a1200; }
+.zone-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.zone-name { font-size: 13px; color: #fff; font-weight: 500; }
+.zone-gvs { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 4px; }
+.gvs-hot  { background: rgba(230,57,70,0.2);  color: #e63946; }
+.gvs-warm { background: rgba(244,162,97,0.2);  color: #f4a261; }
+.gvs-cool { background: rgba(45,156,219,0.2);  color: #2d9cdb; }
+.gvs-cold { background: rgba(108,117,125,0.2); color: #aaa; }
+.zone-bar-bg { height: 3px; background: #222; border-radius: 2px; }
+.zone-bar-fill { height: 3px; border-radius: 2px; transition: width 0.5s; }
+.zone-meta { font-size: 10px; color: #555; margin-top: 5px; display: flex; justify-content: space-between; }
+
+.data-source-list { display: flex; flex-direction: column; gap: 8px; }
+.ds-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
+.ds-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ds-name { font-size: 12px; color: #ccc; }
+.ds-status { font-family: var(--font-mono); font-size: 9px; margin-left: auto; }
+.ds-ok { color: #22c55e; } .ds-warn { color: var(--warm); }
+
+/* MAIN */
+.main { padding: 28px 32px; overflow: auto; }
+
+/* PAGE HEADER */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+.page-title { font-family: var(--font-display); font-size: 38px; color: var(--text); line-height: 1.1; }
+.page-title span { display: block; font-family: var(--font-body); font-size: 13px; color: var(--muted); font-weight: 300; margin-top: 6px; font-style: normal; }
+.horizon-toggle { display: flex; gap: 4px; background: var(--bg3); border-radius: 8px; padding: 4px; }
+.hz-btn { font-family: var(--font-mono); font-size: 11px; padding: 6px 14px; border-radius: 6px; border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+.hz-btn.active { background: var(--text); color: #fff; }
+
+/* HEATMAP GRID */
+.section-label { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.heatmap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+.heat-card {
+  background: var(--bg2); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 18px;
+  cursor: pointer; transition: all 0.25s; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+}
+.heat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+}
+.heat-card.hot::before  { background: var(--hot); }
+.heat-card.warm::before { background: var(--warm); }
+.heat-card.cool::before { background: var(--cool); }
+.heat-card.cold::before { background: var(--cold); }
+.heat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+.heat-card.selected { border-color: var(--accent); }
+.heat-zone-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.heat-zone-loc { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+.gvs-big { font-family: var(--font-display); font-size: 42px; line-height: 1; }
+.heat-card.hot  .gvs-big { color: var(--hot); }
+.heat-card.warm .gvs-big { color: var(--warm); }
+.heat-card.cool .gvs-big { color: var(--cool); }
+.heat-card.cold .gvs-big { color: var(--cold); }
+.gvs-label { font-family: var(--font-mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+.heat-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.hm-item { }
+.hm-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); font-weight: 500; }
+.hm-key { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.trend-arrow { font-size: 10px; }
+.up { color: #22c55e; } .down { color: var(--hot); } .flat { color: var(--muted); }
+
+/* DETAIL PANEL */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+.detail-card { background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; box-shadow: var(--shadow); }
+.detail-title { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 16px; }
+.chart-wrap { position: relative; height: 200px; }
+
+/* INFRA FEED */
+.infra-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin-bottom: 28px; }
+.infra-card {
+  background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border);
+  padding: 16px; display: flex; gap: 14px; align-items: flex-start; box-shadow: var(--shadow);
+}
+.infra-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.infra-icon.metro   { background: #fde8d8; }
+.infra-icon.road    { background: #d8f0e8; }
+.infra-icon.sewer   { background: #d8e8fd; }
+.infra-icon.zoning  { background: #fdf0d8; }
+.infra-icon.ring    { background: #ead8fd; }
+.infra-icon.airport { background: #d8fde8; }
+.infra-body { flex: 1; }
+.infra-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.infra-desc { font-size: 11px; color: var(--muted); line-height: 1.6; }
+.infra-meta { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.infra-tag { font-family: var(--font-mono); font-size: 9px; padding: 2px 8px; border-radius: 4px; }
+.tag-tender  { background: #fde8d8; color: #c8581a; }
+.tag-approved { background: #d8f0e8; color: #2d5a3d; }
+.tag-survey  { background: #d8e8fd; color: #1a3a5c; }
+.tag-zoning  { background: #fdf0d8; color: #8a6020; }
+.impact-badge { font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-left: auto; flex-shrink: 0; }
+.imp-high { background: rgba(230,57,70,0.1); color: var(--hot); }
+.imp-med  { background: rgba(244,162,97,0.1); color: var(--warm); }
+
+/* MARKET TABLE */
+.market-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; background: var(--bg2); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.market-table th { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: 1px; padding: 12px 16px; border-bottom: 1px solid var(--border); text-align: left; background: var(--bg3); }
+.market-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.market-table tr:last-child td { border-bottom: none; }
+.market-table tr:hover td { background: var(--bg3); }
+.zone-pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+.pill-hot  { background: rgba(230,57,70,0.1);  color: var(--hot); }
+.pill-warm { background: rgba(244,162,97,0.1);  color: #c87020; }
+.pill-cool { background: rgba(45,156,219,0.1);  color: var(--cool); }
+.pill-cold { background: rgba(108,117,125,0.1); color: var(--cold); }
+.delta-up { color: #22c55e; font-family: var(--font-mono); font-size: 12px; }
+.delta-down { color: var(--hot); font-family: var(--font-mono); font-size: 12px; }
+.score-cell { font-family: var(--font-display); font-size: 18px; }
+
+/* RECOMMENDATION PANEL */
+.reco-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 28px; }
+.reco-card { background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); padding: 18px; box-shadow: var(--shadow); }
+.reco-rank { font-family: var(--font-display); font-size: 40px; color: var(--bg3); line-height: 1; }
+.reco-zone { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.reco-subtitle { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.reco-why { font-size: 12px; color: var(--text); line-height: 1.7; padding: 10px; background: var(--bg3); border-radius: 8px; border-left: 3px solid var(--accent); }
+.reco-horizon { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 10px; }
+
+/* FOOTER */
+.page-footer { margin-top: 12px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.footer-note { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+/* ANIMATIONS */
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+.anim { animation: fadeUp 0.45s ease both; }
+.d1{animation-delay:.05s} .d2{animation-delay:.1s} .d3{animation-delay:.15s} .d4{animation-delay:.2s} .d5{animation-delay:.25s} .d6{animation-delay:.3s}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div>
+    <div class="logo">URBAN &nbsp;<span style="color:#333;font-family:var(--font-mono);font-size:12px;font-weight:300">PREDICTIVE REAL ESTATE ANALYTICS ENGINE</span></div>
+  </div>
+  <div class="topbar-chips">
+    <div class="chip active">NCR REGION</div>
+    <div class="chip">2024–2029 HORIZON</div>
+    <div class="chip">MUNICIPAL + MARKET DATA</div>
+    <div class="live-indicator"><span class="live-dot"></span>LIVE FEEDS</div>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-block">
+    <div class="sb-label">Market Region</div>
+    <div class="city-hero">
+      <div class="city-name">NCR Delhi</div>
+      <div class="city-meta">National Capital Region · India</div>
+      <div class="city-stat-row">
+        <div class="city-stat"><div class="city-stat-val">₹18K</div><div class="city-stat-key">Avg PSF (ready)</div></div>
+        <div class="city-stat"><div class="city-stat-val">8.2%</div><div class="city-stat-key">YoY Appreciation</div></div>
+        <div class="city-stat"><div class="city-stat-val">6</div><div class="city-stat-key">Active Zones</div></div>
+        <div class="city-stat"><div class="city-stat-val">₹9.4K</div><div class="city-stat-key">Avg Rental PSF</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-block">
+    <div class="sb-label">Growth Velocity Zones</div>
+    <div class="zone-list" id="zoneList"></div>
+  </div>
+
+  <div class="sidebar-block">
+    <div class="sb-label">Data Sources</div>
+    <div class="data-source-list">
+      <div class="ds-item"><div class="ds-dot" style="background:#22c55e"></div><div class="ds-name">MCD / NMMC Municipal Portal</div><div class="ds-status ds-ok">LIVE</div></div>
+      <div class="ds-item"><div class="ds-dot" style="background:#22c55e"></div><div class="ds-name">99acres Listing Feed</div><div class="ds-status ds-ok">LIVE</div></div>
+      <div class="ds-item"><div class="ds-dot" style="background:#22c55e"></div><div class="ds-name">MagicBricks Price Index</div><div class="ds-status ds-ok">LIVE</div></div>
+      <div class="ds-item"><div class="ds-dot" style="background:var(--warm)"></div><div class="ds-name">DDA Land Use Records</div><div class="ds-status ds-warn">CACHED</div></div>
+      <div class="ds-item"><div class="ds-dot" style="background:#22c55e"></div><div class="ds-name">DMRC Metro Phase-IV Data</div><div class="ds-status ds-ok">LIVE</div></div>
+      <div class="ds-item"><div class="ds-dot" style="background:#22c55e"></div><div class="ds-name">Rental Absorption Index</div><div class="ds-status ds-ok">LIVE</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header anim d1">
+    <div>
+      <div class="page-title">GROWTH HOTSPOT MAP<span>Predictive geospatial analytics · Municipal declarations fused with market intelligence</span></div>
+    </div>
+    <div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-bottom:6px;text-align:right">FORECAST HORIZON</div>
+      <div class="horizon-toggle">
+        <button class="hz-btn active" onclick="setHorizon(0,this)">24 MO</button>
+        <button class="hz-btn" onclick="setHorizon(1,this)">36 MO</button>
+        <button class="hz-btn" onclick="setHorizon(2,this)">60 MO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP CARDS -->
+  <div class="section-label anim d2">GROWTH VELOCITY SCORE (GVS) — ZONE HEATMAP</div>
+  <div class="heatmap-grid anim d2" id="heatmapGrid"></div>
+
+  <!-- CHARTS -->
+  <div class="section-label anim d3">MARKET INTELLIGENCE ANALYSIS</div>
+  <div class="detail-grid anim d3">
+    <div class="detail-card">
+      <div class="detail-title">PRICE VELOCITY — READY VS UNDER CONSTRUCTION (PSF ₹K)</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-title">RENTAL YIELD vs SELLING PRICE — MICRO-MARKET DELTA</div>
+      <div class="chart-wrap"><canvas id="yieldChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- INFRASTRUCTURE -->
+  <div class="section-label anim d4">MUNICIPAL DECLARATION FEED — INFRASTRUCTURE INTENT SIGNALS</div>
+  <div class="infra-grid anim d4" id="infraGrid"></div>
+
+  <!-- MARKET TABLE -->
+  <div class="section-label anim d5">MULTI-SOURCE MARKET DATA TABLE</div>
+  <table class="market-table anim d5" id="marketTable">
+    <thead>
+      <tr>
+        <th>Zone / Micro-Market</th>
+        <th>GVS Score</th>
+        <th>Heat Level</th>
+        <th>Listing Density</th>
+        <th>Ready PSF</th>
+        <th>UC PSF</th>
+        <th>Rental Yield</th>
+        <th>YoY Delta</th>
+        <th>Horizon Projection</th>
+      </tr>
+    </thead>
+    <tbody id="marketBody"></tbody>
+  </table>
+
+  <!-- RECOMMENDATIONS -->
+  <div class="section-label anim d6">TOP INVESTMENT RECOMMENDATIONS — <span id="horizonLabel">24-MONTH</span> HORIZON</div>
+  <div class="reco-grid anim d6" id="recoGrid"></div>
+
+  <div class="page-footer">
+    <div class="footer-note">URBANAI PREDICTIVE ENGINE · SOURCES: MCD, DDA, 99ACRES, MAGICBRICKS, DMRC · NCR REGION</div>
+    <div class="footer-note">GENERATED: <span id="genTime"></span></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const ZONES = [
+  {
+    id:'dwarka', name:'Dwarka Expressway', loc:'Gurugram / Delhi Border', heat:'hot',
+    gvs: [88, 91, 95],
+    metrics: { listingDensity:'High', readyPSF:'₹14,200', ucPSF:'₹11,800', rentalYield:'3.8%', yoy:'+14.2%', proj:'+32%' },
+    why:'Metro Phase-IV station confirmed + Ring Road expansion tender awarded. Undervalued UC segment showing 14.2% YoY appreciation.'
+  },
+  {
+    id:'aerocity', name:'Aerocity–Mahipalpur', loc:'South Delhi', heat:'hot',
+    gvs: [85, 88, 92],
+    metrics: { listingDensity:'High', readyPSF:'₹22,100', ucPSF:'₹17,400', rentalYield:'4.2%', yoy:'+11.8%', proj:'+28%' },
+    why:'Airport expansion phase-3 CLU rezoned to mixed-use. Corporate leasing demand at 5-year high. Rental absorption fastest in NCR.'
+  },
+  {
+    id:'noida201', name:'Noida Sector 142–150', loc:'Greater Noida Expressway', heat:'warm',
+    gvs: [72, 78, 84],
+    metrics: { listingDensity:'Medium', readyPSF:'₹8,900', ucPSF:'₹7,200', rentalYield:'3.2%', yoy:'+9.4%', proj:'+22%' },
+    why:'Sewage infrastructure upgrade approved + IT corridor notification. Search volume on portals +38% QoQ. Entry pricing attractive.'
+  },
+  {
+    id:'rohini', name:'Rohini–Swaroop Nagar', loc:'North-West Delhi', heat:'warm',
+    gvs: [68, 73, 79],
+    metrics: { listingDensity:'Medium', readyPSF:'₹9,400', ucPSF:'₹7,800', rentalYield:'2.9%', yoy:'+7.1%', proj:'+19%' },
+    why:'Metro Phase-IV Yellow Line extension bringing 3 new stations. Affordable segment with growing middle-class demand.'
+  },
+  {
+    id:'faridabad', name:'Faridabad Sector 88–90', loc:'Haryana', heat:'cool',
+    gvs: [54, 60, 68],
+    metrics: { listingDensity:'Low', readyPSF:'₹5,200', ucPSF:'₹4,100', rentalYield:'2.4%', yoy:'+4.8%', proj:'+14%' },
+    why:'RRTS station planned but land acquisition pending. Long-term play with moderate near-term risk. Supply overhang visible.'
+  },
+  {
+    id:'ghaziabad', name:'Ghaziabad Raj Nagar Ext.', loc:'UP Border', heat:'cold',
+    gvs: [38, 44, 55],
+    metrics: { listingDensity:'Low', readyPSF:'₹4,100', ucPSF:'₹3,200', rentalYield:'2.1%', yoy:'+2.3%', proj:'+9%' },
+    why:'High supply overhang, slow absorption rate. Infrastructure declarations not yet funded. Monitor — not buy.'
+  },
+];
+
+const INFRA = [
+  { icon:'🚇', cls:'metro',   title:'Metro Phase-IV: Janakpuri West–RK Ashram Corridor', desc:'Civil work tender awarded ₹4,200 Cr. 20.2 km alignment passing through Dwarka and Punjabi Bagh. Completion target: 2027.', tags:['tag-tender'], tagLabels:['TENDER AWARDED'], impact:'imp-high', impLabel:'HIGH IMPACT' },
+  { icon:'🛣️', cls:'road',   title:'Dwarka Expressway 8-Lane Widening, Phase 2', desc:'NHAI approved ₹1,800 Cr for service lane addition and 4 new flyovers. Expected to reduce peak-hour congestion 40%.', tags:['tag-approved'], tagLabels:['APPROVED'], impact:'imp-high', impLabel:'HIGH IMPACT' },
+  { icon:'🏭', cls:'sewer',  title:'Greater Noida Sewage Treatment Plant Expansion', desc:'GNIDA survey initiated for 120 MLD STP near Sector 148. Prerequisite for residential density increase CLU approval.', tags:['tag-survey'], tagLabels:['SURVEY'], impact:'imp-med', impLabel:'MED IMPACT' },
+  { icon:'📋', cls:'zoning', title:'Aerocity Mixed-Use CLU Rezoning Notification', desc:'DDA issued Change of Land Use notification for 42 acres in Mahipalpur from industrial to commercial-residential mixed use.', tags:['tag-zoning'], tagLabels:['CLU CHANGE'], impact:'imp-high', impLabel:'HIGH IMPACT' },
+  { icon:'🔄', cls:'ring',   title:'Ring Road Peripheral Extension — Faridabad Link', desc:'PWD declared intent for 18 km peripheral expressway connecting NH-48 to NH-19 via Faridabad Sector 88. DPR stage.', tags:['tag-survey'], tagLabels:['DPR STAGE'], impact:'imp-med', impLabel:'MED IMPACT' },
+  { icon:'✈️', cls:'airport', title:'IGI Airport Terminal 2 Expansion + Cargo Hub', desc:'AAI approved ₹6,200 Cr T2 expansion and dedicated cargo hub in Mahipalpur. Land acquisition complete. 2026 target.', tags:['tag-approved'], tagLabels:['APPROVED'], impact:'imp-high', impLabel:'HIGH IMPACT' },
+];
+
+const HORIZONS = ['24-MONTH', '36-MONTH', '60-MONTH'];
+let activeHorizon = 0;
+let priceChart, yieldChart;
+
+// ── RENDER SIDEBAR ZONES ──────────────────────────────────────────────────
+function renderZoneList() {
+  const colors = { hot: '#e63946', warm: '#f4a261', cool: '#2d9cdb', cold: '#6c757d' };
+  document.getElementById('zoneList').innerHTML = ZONES.map((z,i) => {
+    const gvs = z.gvs[activeHorizon];
+    return `<div class="zone-item ${i===0?'selected':''}" onclick="selectZone(${i}, this)">
+      <div class="zone-top">
+        <div class="zone-name">${z.name}</div>
+        <div class="zone-gvs gvs-${z.heat}">${gvs}</div>
+      </div>
+      <div class="zone-bar-bg"><div class="zone-bar-fill" style="width:${gvs}%;background:${colors[z.heat]}"></div></div>
+      <div class="zone-meta"><span>${z.loc}</span><span style="color:${colors[z.heat]}">${z.heat.toUpperCase()}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER HEATMAP CARDS ──────────────────────────────────────────────────
+function renderHeatmap() {
+  document.getElementById('heatmapGrid').innerHTML = ZONES.map((z,i) => {
+    const gvs = z.gvs[activeHorizon];
+    const m = z.metrics;
+    return `<div class="heat-card ${z.heat} ${i===0?'selected':''}" onclick="selectZone(${i}, this)">
+      <div class="heat-zone-name">${z.name}</div>
+      <div class="heat-zone-loc">${z.loc}</div>
+      <div class="gvs-big">${gvs}</div>
+      <div class="gvs-label">GROWTH VELOCITY SCORE / 100</div>
+      <div class="heat-metrics">
+        <div class="hm-item"><div class="hm-val">${m.readyPSF}</div><div class="hm-key">Ready PSF</div></div>
+        <div class="hm-item"><div class="hm-val up">${m.yoy} <span class="trend-arrow">↑</span></div><div class="hm-key">YoY Change</div></div>
+        <div class="hm-item"><div class="hm-val">${m.rentalYield}</div><div class="hm-key">Rental Yield</div></div>
+        <div class="hm-item"><div class="hm-val">${m.proj}</div><div class="hm-key">${HORIZONS[activeHorizon]} Proj.</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER INFRA CARDS ────────────────────────────────────────────────────
+function renderInfra() {
+  document.getElementById('infraGrid').innerHTML = INFRA.map(inf => `
+    <div class="infra-card">
+      <div class="infra-icon ${inf.cls}">${inf.icon}</div>
+      <div class="infra-body">
+        <div class="infra-title">${inf.title}</div>
+        <div class="infra-desc">${inf.desc}</div>
+        <div class="infra-meta">
+          ${inf.tags.map((t,i) => `<span class="infra-tag ${t}">${inf.tagLabels[i]}</span>`).join('')}
+        </div>
+      </div>
+      <span class="impact-badge ${inf.impact}">${inf.impLabel}</span>
+    </div>`).join('');
+}
+
+// ── RENDER MARKET TABLE ───────────────────────────────────────────────────
+function renderTable() {
+  const pillClass = { hot:'pill-hot', warm:'pill-warm', cool:'pill-cool', cold:'pill-cold' };
+  document.getElementById('marketBody').innerHTML = ZONES.map(z => {
+    const m = z.metrics;
+    const gvs = z.gvs[activeHorizon];
+    return `<tr>
+      <td style="font-weight:500">${z.name}<div style="font-size:11px;color:var(--muted)">${z.loc}</div></td>
+      <td class="score-cell" style="color:${z.heat==='hot'?'var(--hot)':z.heat==='warm'?'var(--warm)':z.heat==='cool'?'var(--cool)':'var(--cold)'}">${gvs}</td>
+      <td><span class="zone-pill ${pillClass[z.heat]}">${z.heat.toUpperCase()}</span></td>
+      <td>${m.listingDensity}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${m.readyPSF}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${m.ucPSF}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${m.rentalYield}</td>
+      <td class="delta-up">${m.yoy}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent2)">${m.proj}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── RENDER RECOMMENDATIONS ────────────────────────────────────────────────
+function renderRecos() {
+  const top3 = [...ZONES].sort((a,b) => b.gvs[activeHorizon] - a.gvs[activeHorizon]).slice(0,3);
+  document.getElementById('recoGrid').innerHTML = top3.map((z, i) => `
+    <div class="reco-card">
+      <div class="reco-rank">0${i+1}</div>
+      <div class="reco-zone">${z.name}</div>
+      <div class="reco-subtitle">${z.loc} · GVS ${z.gvs[activeHorizon]}/100</div>
+      <div class="reco-why">${z.why}</div>
+      <div class="reco-horizon">PROJECTED APPRECIATION: ${z.metrics.proj} over ${HORIZONS[activeHorizon]}</div>
+    </div>`).join('');
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────
+function renderCharts() {
+  const zoneNames = ZONES.map(z => z.name.split(' ')[0]);
+  const readyPSF  = [14.2, 22.1, 8.9, 9.4, 5.2, 4.1];
+  const ucPSF     = [11.8, 17.4, 7.2, 7.8, 4.1, 3.2];
+  const rentalYld = [3.8, 4.2, 3.2, 2.9, 2.4, 2.1];
+  const sellPrice = [14.2, 22.1, 8.9, 9.4, 5.2, 4.1];
+
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart(document.getElementById('priceChart'), {
+    type: 'bar',
+    data: {
+      labels: zoneNames,
+      datasets: [
+        { label: 'Ready (₹K PSF)', data: readyPSF, backgroundColor: 'rgba(200,88,26,0.8)', borderRadius: 4 },
+        { label: 'Under Const. (₹K PSF)', data: ucPSF, backgroundColor: 'rgba(45,90,61,0.7)', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478' } },
+        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478', callback: v => '₹'+v+'K' } }
+      },
+      plugins: { legend: { labels: { font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478', boxWidth: 10 } } }
+    }
+  });
+
+  if (yieldChart) yieldChart.destroy();
+  yieldChart = new Chart(document.getElementById('yieldChart'), {
+    type: 'scatter',
+    data: {
+      datasets: ZONES.map((z,i) => ({
+        label: z.name.split(' ')[0],
+        data: [{ x: sellPrice[i], y: rentalYld[i] }],
+        backgroundColor: ['#e63946','#f4a261','#2d9cdb','#6fba8a','#aaa','#ccc'][i],
+        pointRadius: 10,
+        pointHoverRadius: 13,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'Selling Price (₹K PSF)', font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478' }, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478', callback: v => '₹'+v+'K' } },
+        y: { title: { display: true, text: 'Rental Yield %', font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478' }, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478', callback: v => v+'%' } }
+      },
+      plugins: { legend: { labels: { font: { family: 'JetBrains Mono', size: 9 }, color: '#8a8478', boxWidth: 8 } } }
+    }
+  });
+}
+
+// ── INTERACTIONS ───────────────────────────────────────────────────────────
+function setHorizon(idx, btn) {
+  activeHorizon = idx;
+  document.querySelectorAll('.hz-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+  document.getElementById('horizonLabel').textContent = HORIZONS[idx];
+  renderHeatmap();
+  renderZoneList();
+  renderTable();
+  renderRecos();
+}
+
+function selectZone(idx, el) {
+  document.querySelectorAll('.zone-item').forEach(z => z.classList.remove('selected'));
+  document.querySelectorAll('.heat-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.zone-item')[idx]?.classList.add('selected');
+  document.querySelectorAll('.heat-card')[idx]?.classList.add('selected');
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.getElementById('genTime').textContent = new Date().toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' });
+renderZoneList();
+renderHeatmap();
+renderInfra();
+renderTable();
+renderRecos();
+renderCharts();
+</script>
+</body>
+</html>
